@@ -94,7 +94,7 @@ class TelegramIntegration {
 
 class GameAPI {
     constructor() {
-        this.baseURL = 'math-game-production-5f15.up.railway.app'; // ЗАМЕНИТЕ НА ВАШ URL
+        this.baseURL = 'https://your-app.railway.app'; // ЗАМЕНИТЕ НА ВАШ URL
     }
 
     async saveScore(userData) {
@@ -829,5 +829,4 @@ class MathGame {
 
 window.addEventListener('load', () => {
     new MathGame();
-
 });
