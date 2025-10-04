@@ -1,101 +1,166 @@
 const express = require('express');
 const cors = require('cors');
+const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Временное хранилище в памяти
-let dailyScores = [];
-let weeklyScores = [];
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'Сервер работает! 🚀',
-    database: 'In-memory (temporary)',
-    timestamp: new Date().toISOString()
-  });
+// PostgreSQL подключение (Railway автоматически предоставит DATABASE_URL)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
+// Создание таблиц при запуске
+async function initDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS daily_scores (
+      id SERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      username VARCHAR(100) NOT NULL,
+      score INTEGER NOT NULL,
+      streak INTEGER NOT NULL,
+      multiplier INTEGER NOT NULL,
+      game_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(user_id, game_date)
+    );
+    
+    CREATE TABLE IF NOT EXISTS weekly_scores (
+      id SERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      username VARCHAR(100) NOT NULL,
+      score INTEGER NOT NULL,
+      streak INTEGER NOT NULL,
+      multiplier INTEGER NOT NULL,
+      week_start DATE NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(user_id, week_start)
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_daily_date ON daily_scores(game_date);
+    CREATE INDEX IF NOT EXISTS idx_weekly_week ON weekly_scores(week_start);
+  `);
+  console.log('Database initialized');
+}
+
+initDatabase();
+
 // Сохранение результата
-app.post('/api/save-score', (req, res) => {
+app.post('/api/save-score', async (req, res) => {
   try {
     const { userId, username, score, streak, multiplier } = req.body;
     const today = new Date().toISOString().split('T')[0];
-    
-    // Сохраняем в ежедневный рейтинг
-    const dailyIndex = dailyScores.findIndex(s => s.userId === userId && s.date === today);
-    if (dailyIndex !== -1) {
-      if (score > dailyScores[dailyIndex].score) {
-        dailyScores[dailyIndex] = { userId, username, score, streak, multiplier, date: today };
-      }
-    } else {
-      dailyScores.push({ userId, username, score, streak, multiplier, date: today });
-    }
-    
-    // Сохраняем в еженедельный рейтинг
     const weekStart = getWeekStart();
-    const weeklyIndex = weeklyScores.findIndex(s => s.userId === userId && s.weekStart === weekStart);
-    if (weeklyIndex !== -1) {
-      if (score > weeklyScores[weeklyIndex].score) {
-        weeklyScores[weeklyIndex] = { userId, username, score, streak, multiplier, weekStart };
-      }
-    } else {
-      weeklyScores.push({ userId, username, score, streak, multiplier, weekStart });
-    }
     
-    // Сортируем по очкам
-    dailyScores.sort((a, b) => b.score - a.score);
-    weeklyScores.sort((a, b) => b.score - a.score);
+    await pool.query(
+      `INSERT INTO daily_scores (user_id, username, score, streak, multiplier, game_date) 
+       VALUES ($1, $2, $3, $4, $5, $6) 
+       ON CONFLICT (user_id, game_date) 
+       DO UPDATE SET score = GREATEST(daily_scores.score, $3),
+                     username = $2,
+                     streak = $4,
+                     multiplier = $5,
+                     created_at = NOW()`,
+      [userId, username, score, streak, multiplier, today]
+    );
     
-    res.json({ success: true, message: 'Результат сохранен' });
+    await pool.query(
+      `INSERT INTO weekly_scores (user_id, username, score, streak, multiplier, week_start) 
+       VALUES ($1, $2, $3, $4, $5, $6) 
+       ON CONFLICT (user_id, week_start) 
+       DO UPDATE SET score = GREATEST(weekly_scores.score, $3),
+                     username = $2,
+                     streak = $4,
+                     multiplier = $5,
+                     created_at = NOW()`,
+      [userId, username, score, streak, multiplier, weekStart]
+    );
+    
+    res.json({ success: true });
   } catch (error) {
+    console.error('Error saving score:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Ежедневный лидерборд
-app.get('/api/leaderboard/daily', (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
-  const todayScores = dailyScores
-    .filter(s => s.date === today)
-    .slice(0, 100)
-    .map(({ userId, date, ...rest }) => rest); // Убираем служебные поля
-  
-  res.json(todayScores);
+app.get('/api/leaderboard/daily', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const result = await pool.query(
+      `SELECT username, score, streak, multiplier 
+       FROM daily_scores 
+       WHERE game_date = $1 
+       ORDER BY score DESC, created_at ASC 
+       LIMIT 100`,
+      [today]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching daily leaderboard:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Еженедельный лидерборд
-app.get('/api/leaderboard/weekly', (req, res) => {
-  const weekStart = getWeekStart();
-  const weekScores = weeklyScores
-    .filter(s => s.weekStart === weekStart)
-    .slice(0, 100)
-    .map(({ userId, weekStart, ...rest }) => rest);
-  
-  res.json(weekScores);
+app.get('/api/leaderboard/weekly', async (req, res) => {
+  try {
+    const weekStart = getWeekStart();
+    const result = await pool.query(
+      `SELECT username, score, streak, multiplier 
+       FROM weekly_scores 
+       WHERE week_start = $1 
+       ORDER BY score DESC, created_at ASC 
+       LIMIT 100`,
+      [weekStart]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching weekly leaderboard:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Позиция пользователя
-app.get('/api/user-position/:userId', (req, res) => {
-  const { userId } = req.params;
-  const today = new Date().toISOString().split('T')[0];
-  const weekStart = getWeekStart();
-  
-  const dailyPosition = dailyScores
-    .filter(s => s.date === today)
-    .findIndex(s => s.userId === userId) + 1;
+app.get('/api/user-position/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const today = new Date().toISOString().split('T')[0];
+    const weekStart = getWeekStart();
     
-  const weeklyPosition = weeklyScores
-    .filter(s => s.weekStart === weekStart)
-    .findIndex(s => s.userId === userId) + 1;
-  
-  res.json({
-    daily: dailyPosition || 0,
-    weekly: weeklyPosition || 0
-  });
+    const dailyPosition = await pool.query(
+      `SELECT COUNT(*) + 1 as position 
+       FROM daily_scores 
+       WHERE game_date = $1 AND score > (
+         SELECT score FROM daily_scores WHERE user_id = $2 AND game_date = $1
+       )`,
+      [today, userId]
+    );
+    
+    const weeklyPosition = await pool.query(
+      `SELECT COUNT(*) + 1 as position 
+       FROM weekly_scores 
+       WHERE week_start = $1 AND score > (
+         SELECT score FROM weekly_scores WHERE user_id = $2 AND week_start = $1
+       )`,
+      [weekStart, userId]
+    );
+    
+    res.json({
+      daily: parseInt(dailyPosition.rows[0]?.position) || 0,
+      weekly: parseInt(weeklyPosition.rows[0]?.position) || 0
+    });
+  } catch (error) {
+    console.error('Error fetching user position:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Статус сервера
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Вспомогательная функция для начала недели
@@ -107,9 +172,7 @@ function getWeekStart() {
 }
 
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Health check: http://0.0.0.0:${PORT}/api/health`);
-  console.log(`💾 Database: In-memory storage (temporary)`);
+  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
 });
