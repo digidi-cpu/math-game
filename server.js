@@ -2,7 +2,25 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+
+// Безопасный CORS для Telegram Mini Apps
+app.use(cors({
+    origin: [
+        'https://telegram.org',
+        'https://web.telegram.org',
+        'https://splendid-narwhal-b0f1fb.netlify.app', // ваш фронтенд на Netlify
+        'https://*.netlify.app', // все поддомены Netlify
+        'http://localhost:3000', // для разработки
+        'http://localhost:8080'  // для разработки
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Обработка preflight OPTIONS запросов
+app.options('*', cors());
+
 app.use(express.json());
 
 // Простое хранилище в памяти
@@ -24,15 +42,23 @@ app.post('/api/save-score', (req, res) => {
   try {
     const { userId, username, score, streak, multiplier } = req.body;
     
+    // Валидация
+    if (!userId || score === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
     console.log('💾 Saving score:', { userId, username, score });
     
-    // Просто сохраняем в массив
+    // Удаляем старый результат пользователя (если есть)
+    scores = scores.filter(s => s.userId !== userId);
+    
+    // Сохраняем новый результат
     scores.push({
       userId,
-      username, 
-      score,
-      streak,
-      multiplier,
+      username: username || 'Аноним', 
+      score: Math.max(0, score),
+      streak: Math.max(0, streak),
+      multiplier: Math.max(1, multiplier),
       timestamp: new Date().toISOString()
     });
     
@@ -60,12 +86,16 @@ app.get('/api/leaderboard/daily', (req, res) => {
     const todayScores = scores
       .filter(s => s.timestamp.includes(today))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 100)
-      .map(({ userId, timestamp, ...rest }) => rest);
+      .slice(0, 50)
+      .map((score, index) => ({
+        ...score,
+        rank: index + 1
+      }));
     
     res.json(todayScores);
   } catch (error) {
-    res.json([]); // Всегда возвращаем массив
+    console.error('Error daily leaderboard:', error);
+    res.json([]);
   }
 });
 
@@ -73,23 +103,67 @@ app.get('/api/leaderboard/weekly', (req, res) => {
   try {
     const weeklyScores = scores
       .sort((a, b) => b.score - a.score)
-      .slice(0, 100)
-      .map(({ userId, timestamp, ...rest }) => rest);
+      .slice(0, 50)
+      .map((score, index) => ({
+        ...score,
+        rank: index + 1
+      }));
     
     res.json(weeklyScores);
   } catch (error) {
+    console.error('Error weekly leaderboard:', error);
     res.json([]);
   }
 });
 
-// Позиция пользователя
+// Позиция пользователя (исправленная логика)
 app.get('/api/user-position/:userId', (req, res) => {
   try {
     const { userId } = req.params;
-    res.json({ daily: 1, weekly: 1 }); // Упрощенная версия
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Дневной рейтинг
+    const dailyScores = scores
+      .filter(s => s.timestamp.includes(today))
+      .sort((a, b) => b.score - a.score);
+    
+    const dailyPosition = dailyScores.findIndex(s => s.userId === userId) + 1;
+    
+    // Недельный рейтинг  
+    const weeklyScores = scores
+      .sort((a, b) => b.score - a.score);
+      
+    const weeklyPosition = weeklyScores.findIndex(s => s.userId === userId) + 1;
+    
+    res.json({ 
+      daily: dailyPosition || 0, 
+      weekly: weeklyPosition || 0 
+    });
+    
   } catch (error) {
+    console.error('Error user position:', error);
     res.json({ daily: 0, weekly: 0 });
   }
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Math Game API is running!',
+    endpoints: [
+      'GET /api/health',
+      'POST /api/save-score',
+      'GET /api/leaderboard/daily', 
+      'GET /api/leaderboard/weekly',
+      'GET /api/user-position/:userId'
+    ]
+  });
+});
+
+// Обработка 404
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
 });
 
 // Обработка всех ошибок
@@ -108,4 +182,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎯 Server successfully started on port ${PORT}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`💾 Storage: In-memory (${scores.length} scores)`);
+  console.log(`🌐 CORS enabled for: splendid-narwhal-b0f1fb.netlify.app`);
 });
