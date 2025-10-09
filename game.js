@@ -94,7 +94,7 @@ class TelegramIntegration {
 
 class GameAPI {
     constructor() {
-        this.baseURL = 'https://math-game-production-f196.up.railway.app'; // ЗАМЕНИТЕ НА ВАШ URL
+        this.baseURL = 'https://math-game-production-f196.up.railway.app';
     }
 
     async saveScore(userData) {
@@ -173,13 +173,28 @@ class MathGame {
         this.occupiedPositions = new Set();
         this.leaderboard = { daily: [], weekly: [] };
         
+        this.setupViewport();
         this.initializeGame();
         this.createStars();
         this.preloadImages();
     }
 
+    setupViewport() {
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport && this.isMobile) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+        }
+        
+        document.body.style.width = '100vw';
+        document.body.style.height = '100vh';
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+    }
+
     checkMobile() {
-        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+               window.innerWidth <= 768 ||
+               (window.Telegram && window.Telegram.WebApp);
     }
 
     preloadImages() {
@@ -209,25 +224,27 @@ class MathGame {
         }, 1000);
     }
 
-    getFreePosition(elementWidth, elementHeight, padding = 20) {
+    getFreePosition(elementWidth, elementHeight, padding = 10) {
         const gameArea = document.getElementById('gameArea');
+        if (!gameArea) return padding;
+        
         const maxX = gameArea.offsetWidth - elementWidth - padding;
         const minX = padding;
-        const gridSize = Math.max(elementWidth, elementHeight) + padding;
         
+        const maxAttempts = this.isMobile ? 20 : 50;
         let attempts = 0;
-        const maxAttempts = 50;
         
         while (attempts < maxAttempts) {
-            const gridX = Math.floor(Math.random() * Math.floor(maxX / gridSize));
-            const x = minX + gridX * gridSize + Math.random() * (gridSize - elementWidth);
+            const x = minX + Math.random() * (maxX - minX);
             const positionKey = this.getPositionKey(x, elementWidth);
+            
             if (!this.occupiedPositions.has(positionKey)) {
                 this.occupiedPositions.add(positionKey);
                 return x;
             }
             attempts++;
         }
+        
         return minX + Math.random() * (maxX - minX);
     }
 
@@ -244,7 +261,7 @@ class MathGame {
 
     maintainRockets() {
         const currentRockets = this.activeRockets.size;
-        const neededRockets = 5 - currentRockets;
+        const neededRockets = (this.isMobile ? 4 : 5) - currentRockets;
         if (neededRockets > 0) {
             for (let i = 0; i < neededRockets; i++) {
                 setTimeout(() => this.spawnRocket(), i * 800);
@@ -254,7 +271,7 @@ class MathGame {
 
     maintainPlanets() {
         const currentPlanets = this.activePlanets.size;
-        const neededPlanets = 5 - currentPlanets;
+        const neededPlanets = (this.isMobile ? 4 : 5) - currentPlanets;
         if (neededPlanets > 0) {
             for (let i = 0; i < neededPlanets; i++) {
                 setTimeout(() => this.spawnPlanet(), i * 800);
@@ -263,7 +280,7 @@ class MathGame {
     }
 
     spawnRocket() {
-        if (this.activeRockets.size >= 5) return;
+        if (this.activeRockets.size >= (this.isMobile ? 4 : 5)) return;
         
         const rocketId = this.rocketCounter++;
         const gameArea = document.getElementById('gameArea');
@@ -277,6 +294,7 @@ class MathGame {
         rocketImage.className = 'rocket-image';
         rocketImage.src = this.rocketImages[0];
         rocketImage.alt = 'Ракета';
+        rocketImage.loading = 'eager';
         
         const rocketText = document.createElement('div');
         rocketText.className = 'rocket-text';
@@ -285,12 +303,14 @@ class MathGame {
         rocket.appendChild(rocketImage);
         rocket.appendChild(rocketText);
         
-        const rocketWidth = 120;
-        const x = this.getFreePosition(rocketWidth, 80);
+        const rocketWidth = this.isMobile ? 70 : 120;
+        const rocketHeight = this.isMobile ? 50 : 80;
+        
+        const x = this.getFreePosition(rocketWidth, rocketHeight);
         rocket.style.left = x + 'px';
         rocket.style.top = '-100px';
         
-        const fallDuration = 6 + Math.random() * 2;
+        const fallDuration = this.isMobile ? 4 + Math.random() * 2 : 6 + Math.random() * 2;
         rocket.style.animationDuration = fallDuration + 's';
         
         this.activeRockets.set(rocketId, {
@@ -316,7 +336,7 @@ class MathGame {
     }
 
     spawnPlanet() {
-        if (this.activePlanets.size >= 5) return;
+        if (this.activePlanets.size >= (this.isMobile ? 4 : 5)) return;
         
         const planetId = this.planetCounter++;
         const gameArea = document.getElementById('gameArea');
@@ -337,6 +357,7 @@ class MathGame {
             planetImage.src = this.planetImages[planetImageIndex];
         }
         planetImage.alt = isBomb ? 'Бомба' : 'Планета';
+        planetImage.loading = 'eager';
         
         const planetText = document.createElement('div');
         planetText.className = 'planet-text';
@@ -345,12 +366,14 @@ class MathGame {
         planet.appendChild(planetImage);
         planet.appendChild(planetText);
         
-        const planetWidth = 80;
-        const x = this.getFreePosition(planetWidth, 80);
+        const planetWidth = this.isMobile ? 50 : 80;
+        const planetHeight = this.isMobile ? 50 : 80;
+        
+        const x = this.getFreePosition(planetWidth, planetHeight);
         planet.style.left = x + 'px';
         planet.style.top = '-100px';
         
-        const fallDuration = 7 + Math.random() * 2;
+        const fallDuration = this.isMobile ? 5 + Math.random() * 2 : 7 + Math.random() * 2;
         planet.style.animationDuration = fallDuration + 's';
         
         this.activePlanets.set(planetId, {
@@ -592,7 +615,6 @@ class MathGame {
 
     playSound(type) {
         if (this.isMobile) return;
-        // Звуковая логика может быть добавлена позже
     }
 
     vibrate(duration = 100) {
@@ -621,7 +643,6 @@ class MathGame {
             this.tg.showMainButton(true);
         }
         
-        // Сохраняем результат
         const userData = {
             userId: this.userId,
             username: this.getUsername(),
@@ -675,6 +696,8 @@ class MathGame {
     createStars() {
         function createStarLayer(selector, count, size, speed) {
             const layer = document.querySelector(selector);
+            if (!layer) return;
+            
             layer.innerHTML = '';
             for (let i = 0; i < count; i++) {
                 const star = document.createElement('div');
@@ -698,19 +721,19 @@ class MathGame {
     }
 
     setupEventListeners() {
-        document.getElementById('restart').addEventListener('click', () => this.restartGame());
-        document.getElementById('playAgain').addEventListener('click', () => {
+        document.getElementById('restart')?.addEventListener('click', () => this.restartGame());
+        document.getElementById('playAgain')?.addEventListener('click', () => {
             document.getElementById('resultModal').style.display = 'none';
             this.restartGame();
         });
-        document.getElementById('closeModal').addEventListener('click', () => {
+        document.getElementById('closeModal')?.addEventListener('click', () => {
             document.getElementById('resultModal').style.display = 'none';
         });
-        document.getElementById('share').addEventListener('click', () => this.shareResults());
-        document.getElementById('showLeaderboard').addEventListener('click', () => {
+        document.getElementById('share')?.addEventListener('click', () => this.shareResults());
+        document.getElementById('showLeaderboard')?.addEventListener('click', () => {
             this.showLeaderboard();
         });
-        document.getElementById('closeLeaderboard').addEventListener('click', () => {
+        document.getElementById('closeLeaderboard')?.addEventListener('click', () => {
             document.getElementById('leaderboardModal').style.display = 'none';
         });
         
@@ -719,6 +742,26 @@ class MathGame {
                 this.switchTab(e.target.dataset.tab);
             });
         });
+        
+        window.addEventListener('resize', this.handleResize.bind(this));
+        window.addEventListener('orientationchange', this.handleOrientationChange.bind(this));
+    }
+
+    handleResize() {
+        setTimeout(() => {
+            this.createStars();
+        }, 100);
+    }
+
+    handleOrientationChange() {
+        setTimeout(() => {
+            this.createStars();
+            const gameArea = document.getElementById('gameArea');
+            if (gameArea) {
+                gameArea.style.width = '100%';
+                gameArea.style.height = '100%';
+            }
+        }, 300);
     }
 
     async showLeaderboard() {
@@ -749,7 +792,9 @@ class MathGame {
     }
 
     renderLeaderboard(type, data) {
-        const container = document.getElementById(`${type}Leaderboard`).querySelector('.leaderboard-list');
+        const container = document.getElementById(`${type}Leaderboard`)?.querySelector('.leaderboard-list');
+        if (!container) return;
+        
         if (data.length === 0) {
             container.innerHTML = '<div class="empty-leaderboard">Пока нет результатов</div>';
             return;
@@ -769,8 +814,10 @@ class MathGame {
     }
 
     updateUserPosition(position) {
-        document.getElementById('dailyPosition').textContent = position.daily || '-';
-        document.getElementById('weeklyPosition').textContent = position.weekly || '-';
+        const dailyEl = document.getElementById('dailyPosition');
+        const weeklyEl = document.getElementById('weeklyPosition');
+        if (dailyEl) dailyEl.textContent = position.daily || '-';
+        if (weeklyEl) weeklyEl.textContent = position.weekly || '-';
     }
 
     switchTab(tabName) {
@@ -829,5 +876,4 @@ class MathGame {
 
 window.addEventListener('load', () => {
     new MathGame();
-
 });
