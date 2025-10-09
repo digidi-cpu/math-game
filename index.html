@@ -2,10 +2,28 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="format-detection" content="telephone=no">
     <title>Космический Математический Бой</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        /* Добавьте эти стили в начало */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+        }
+        
         .image-preloader {
             position: absolute;
             opacity: 0;
@@ -14,117 +32,5 @@
             height: 0;
             overflow: hidden;
         }
-        
-        .tg-back-button {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 100;
-        }
-        
-        .tg-back-button button {
-            background: var(--tg-theme-button-color, #2481cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
     </style>
 </head>
-<body>
-    <div class="image-preloader">
-        <img src="https://i.imgur.com/tP950oJ.png" alt="rocket">
-        <img src="https://i.imgur.com/DO3jQJd.png" alt="planet1">
-        <img src="https://i.imgur.com/O4Cpefe.png" alt="planet2">
-        <img src="https://i.imgur.com/MzJB39S.png" alt="planet3">
-        <img src="https://i.imgur.com/KcDW0uG.png" alt="planet4">
-        <img src="https://i.imgur.com/v9hisDN.png" alt="bomb">
-    </div>
-
-    <div id="stars"></div>
-    <div id="stars2"></div>
-    <div id="stars3"></div>
-    
-    <div id="tgBackButton" class="tg-back-button" style="display: none;">
-        <button onclick="window.history.back()">← Назад</button>
-    </div>
-    
-    <div class="container">
-        <div class="header">
-            <h1>🚀 Космический Счет</h1>
-            <div id="userWelcome" class="user-welcome" style="display: none;"></div>
-            <div class="stats">
-                <div class="stat">Очки: <span id="score">0</span></div>
-                <div class="stat">Время: <span id="timer">60</span>с</div>
-                <div class="stat">Страйк: <span id="streak">0</span>x</div>
-                <div class="stat">Множитель: <span id="multiplier">1</span></div>
-            </div>
-        </div>
-
-        <div id="gameArea" class="game-area"></div>
-
-        <div class="bomb-warning">
-            💣 Осторожно! Бомбы отнимают -5 очков!
-        </div>
-
-        <div class="controls">
-            <button id="restart" class="btn">🔄 Новая игра</button>
-            <button id="showLeaderboard" class="btn leaderboard-btn">🏆 Лидерборд</button>
-            <button id="share" class="btn share-btn" style="display: none;">📤 Поделиться</button>
-        </div>
-        
-        <!-- Окно результатов -->
-        <div id="resultModal" class="modal">
-            <div class="modal-content">
-                <h2>🎮 Игра окончена!</h2>
-                <div class="result-stats">
-                    <div>Ваш счет: <span id="finalScore">0</span></div>
-                    <div>Максимальный страйк: <span id="finalStreak">0</span></div>
-                    <div>Лучший множитель: x<span id="finalMultiplier">1</span></div>
-                </div>
-                <div class="modal-buttons">
-                    <button id="playAgain" class="btn">🎯 Играть снова</button>
-                    <button id="closeModal" class="btn btn-secondary">✕ Закрыть</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Модальное окно лидерборда -->
-        <div id="leaderboardModal" class="modal">
-            <div class="modal-content">
-                <h2>🏆 Таблица лидеров</h2>
-                
-                <div class="leaderboard-tabs">
-                    <button class="tab-btn active" data-tab="daily">📅 Сегодня</button>
-                    <button class="tab-btn" data-tab="weekly">📊 Неделя</button>
-                </div>
-                
-                <div class="tab-content">
-                    <div id="dailyLeaderboard" class="tab-pane active">
-                        <div class="leaderboard-list"></div>
-                    </div>
-                    
-                    <div id="weeklyLeaderboard" class="tab-pane">
-                        <div class="leaderboard-list"></div>
-                    </div>
-                </div>
-                
-                <div class="user-position">
-                    <div>Ваша позиция: 
-                        <span id="dailyPosition">-</span> (сегодня) • 
-                        <span id="weeklyPosition">-</span> (неделя)
-                    </div>
-                </div>
-                
-                <div class="modal-buttons">
-                    <button id="closeLeaderboard" class="btn">✕ Закрыть</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="game.js"></script>
-</body>
-</html>
