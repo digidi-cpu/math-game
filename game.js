@@ -107,6 +107,7 @@ class GameAPI {
             return await response.json();
         } catch (error) {
             console.error('Error saving score:', error);
+            return { success: false };
         }
     }
 
@@ -173,22 +174,9 @@ class MathGame {
         this.occupiedPositions = new Set();
         this.leaderboard = { daily: [], weekly: [] };
         
-        this.setupViewport();
         this.initializeGame();
         this.createStars();
         this.preloadImages();
-    }
-
-    setupViewport() {
-        const viewport = document.querySelector('meta[name="viewport"]');
-        if (viewport && this.isMobile) {
-            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-        }
-        
-        document.body.style.width = '100vw';
-        document.body.style.height = '100vh';
-        document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
     }
 
     checkMobile() {
@@ -199,7 +187,10 @@ class MathGame {
 
     preloadImages() {
         const allImages = [...this.rocketImages, ...this.planetImages, this.bombImage];
-        allImages.forEach(src => { const img = new Image(); img.src = src; });
+        allImages.forEach(src => {
+            const img = new Image();
+            img.src = src;
+        });
     }
 
     initializeGame() {
@@ -210,14 +201,15 @@ class MathGame {
     }
 
     startSpawning() {
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 4; i++) {
             setTimeout(() => this.spawnRocket(), i * 1000);
         }
         setTimeout(() => {
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 4; i++) {
                 setTimeout(() => this.spawnPlanet(), i * 1000);
             }
         }, 1500);
+        
         this.spawnInterval = setInterval(() => {
             this.maintainRockets();
             this.maintainPlanets();
@@ -249,7 +241,7 @@ class MathGame {
     }
 
     getPositionKey(x, width) {
-        const gridSize = width + 40;
+        const gridSize = width + 30;
         const gridX = Math.floor(x / gridSize);
         return `pos_${gridX}`;
     }
@@ -261,7 +253,7 @@ class MathGame {
 
     maintainRockets() {
         const currentRockets = this.activeRockets.size;
-        const neededRockets = (this.isMobile ? 4 : 5) - currentRockets;
+        const neededRockets = 4 - currentRockets;
         if (neededRockets > 0) {
             for (let i = 0; i < neededRockets; i++) {
                 setTimeout(() => this.spawnRocket(), i * 800);
@@ -271,7 +263,7 @@ class MathGame {
 
     maintainPlanets() {
         const currentPlanets = this.activePlanets.size;
-        const neededPlanets = (this.isMobile ? 4 : 5) - currentPlanets;
+        const neededPlanets = 4 - currentPlanets;
         if (neededPlanets > 0) {
             for (let i = 0; i < neededPlanets; i++) {
                 setTimeout(() => this.spawnPlanet(), i * 800);
@@ -280,10 +272,12 @@ class MathGame {
     }
 
     spawnRocket() {
-        if (this.activeRockets.size >= (this.isMobile ? 4 : 5)) return;
+        if (this.activeRockets.size >= 4) return;
         
         const rocketId = this.rocketCounter++;
         const gameArea = document.getElementById('gameArea');
+        if (!gameArea) return;
+        
         const { example, answer } = this.generateMathExample();
         
         const rocket = document.createElement('div');
@@ -303,14 +297,14 @@ class MathGame {
         rocket.appendChild(rocketImage);
         rocket.appendChild(rocketText);
         
-        const rocketWidth = this.isMobile ? 70 : 120;
-        const rocketHeight = this.isMobile ? 50 : 80;
+        const rocketWidth = 70;
+        const rocketHeight = 50;
         
         const x = this.getFreePosition(rocketWidth, rocketHeight);
         rocket.style.left = x + 'px';
         rocket.style.top = '-100px';
         
-        const fallDuration = this.isMobile ? 4 + Math.random() * 2 : 6 + Math.random() * 2;
+        const fallDuration = 4 + Math.random() * 2;
         rocket.style.animationDuration = fallDuration + 's';
         
         this.activeRockets.set(rocketId, {
@@ -336,10 +330,12 @@ class MathGame {
     }
 
     spawnPlanet() {
-        if (this.activePlanets.size >= (this.isMobile ? 4 : 5)) return;
+        if (this.activePlanets.size >= 4) return;
         
         const planetId = this.planetCounter++;
         const gameArea = document.getElementById('gameArea');
+        if (!gameArea) return;
+        
         const answer = this.generatePlanetAnswer();
         const isBomb = this.isBombAnswer(answer);
         
@@ -366,14 +362,14 @@ class MathGame {
         planet.appendChild(planetImage);
         planet.appendChild(planetText);
         
-        const planetWidth = this.isMobile ? 50 : 80;
-        const planetHeight = this.isMobile ? 50 : 80;
+        const planetWidth = 50;
+        const planetHeight = 50;
         
         const x = this.getFreePosition(planetWidth, planetHeight);
         planet.style.left = x + 'px';
         planet.style.top = '-100px';
         
-        const fallDuration = this.isMobile ? 5 + Math.random() * 2 : 7 + Math.random() * 2;
+        const fallDuration = 5 + Math.random() * 2;
         planet.style.animationDuration = fallDuration + 's';
         
         this.activePlanets.set(planetId, {
@@ -453,7 +449,6 @@ class MathGame {
         const points = 10 * this.multiplier;
         this.score += points;
         
-        this.playSound('correct');
         this.showStreakEffect();
         this.highlightCorrect(planetId);
         this.updateUI();
@@ -472,7 +467,6 @@ class MathGame {
         this.multiplier = 1;
         this.score = Math.max(0, this.score - 5);
         
-        this.playSound('wrong');
         this.vibrate();
         this.highlightWrong(planetId);
         this.updateUI();
@@ -486,7 +480,6 @@ class MathGame {
         this.multiplier = 1;
         this.score = Math.max(0, this.score - 5);
         
-        this.playSound('bomb');
         this.vibrate(200);
         this.showBombEffect();
         this.updateUI();
@@ -503,7 +496,9 @@ class MathGame {
             rocket.element.style.transform = 'scale(0)';
             rocket.element.style.opacity = '0';
             setTimeout(() => {
-                rocket.element.remove();
+                if (rocket.element.parentNode) {
+                    rocket.element.remove();
+                }
                 this.activeRockets.delete(rocketId);
                 this.correctAnswers.delete(rocketId);
             }, 500);
@@ -513,367 +508,4 @@ class MathGame {
     removePlanet(planetId) {
         const planet = this.activePlanets.get(planetId);
         if (planet) {
-            this.freePosition(parseFloat(planet.element.style.left), planet.width);
-            planet.element.style.transition = 'all 0.5s';
-            planet.element.style.transform = 'scale(0)';
-            planet.element.style.opacity = '0';
-            setTimeout(() => {
-                planet.element.remove();
-                this.activePlanets.delete(planetId);
-            }, 500);
-        }
-    }
-
-    generateMathExample() {
-        const a = Math.floor(Math.random() * 15) + 1;
-        const b = Math.floor(Math.random() * 15) + 1;
-        const operators = ['+', '-', '*'];
-        const operator = operators[Math.floor(Math.random() * operators.length)];
-        
-        let example, answer;
-        switch(operator) {
-            case '+':
-                example = `${a}+${b}`;
-                answer = a + b;
-                break;
-            case '-':
-                const max = Math.max(a, b);
-                const min = Math.min(a, b);
-                example = `${max}-${min}`;
-                answer = max - min;
-                break;
-            case '*':
-                example = `${a}×${b}`;
-                answer = a * b;
-                break;
-        }
-        return { example, answer };
-    }
-
-    highlightCorrect(planetId) {
-        const rocket = this.activeRockets.get(this.selectedRocket);
-        const planet = this.activePlanets.get(planetId);
-        if (rocket) rocket.element.classList.add('solved');
-        if (planet) planet.element.classList.add('correct');
-    }
-
-    highlightWrong(planetId) {
-        const planet = this.activePlanets.get(planetId);
-        if (planet) {
-            planet.element.classList.add('wrong');
-            const rocket = this.activeRockets.get(this.selectedRocket);
-            if (rocket) {
-                const correctPlanets = Array.from(this.activePlanets.entries())
-                    .filter(([id, p]) => p.answer === rocket.answer && !p.isBomb);
-                correctPlanets.forEach(([id, p]) => {
-                    p.element.classList.add('correct');
-                    setTimeout(() => p.element.classList.remove('correct'), 1000);
-                });
-            }
-        }
-    }
-
-    showStreakEffect() {
-        if (this.streak >= 2) {
-            const effect = document.createElement('div');
-            effect.className = 'streak-effect';
-            effect.textContent = `СТРАЙК ${this.streak}! x${this.multiplier}`;
-            document.body.appendChild(effect);
-            setTimeout(() => effect.remove(), 1000);
-        }
-    }
-
-    showBombEffect() {
-        const effect = document.createElement('div');
-        effect.className = 'streak-effect';
-        effect.textContent = '💣 БОМБА! -5';
-        effect.style.color = '#ff4444';
-        document.body.appendChild(effect);
-        setTimeout(() => effect.remove(), 1000);
-    }
-
-    showMessage(message) {
-        const msg = document.createElement('div');
-        msg.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 255, 255, 0.9);
-            color: black;
-            padding: 15px 25px;
-            border-radius: 10px;
-            z-index: 1000;
-            font-weight: bold;
-            text-align: center;
-            max-width: 80%;
-        `;
-        msg.textContent = message;
-        document.body.appendChild(msg);
-        setTimeout(() => msg.remove(), 1500);
-    }
-
-    playSound(type) {
-        if (this.isMobile) return;
-    }
-
-    vibrate(duration = 100) {
-        if (navigator.vibrate && this.isMobile) {
-            navigator.vibrate(duration);
-        }
-    }
-
-    startTimer() {
-        this.timer = setInterval(() => {
-            this.timeLeft--;
-            document.getElementById('timer').textContent = this.timeLeft;
-            if (this.timeLeft <= 0) this.endGame();
-        }, 1000);
-    }
-
-    async endGame() {
-        clearInterval(this.timer);
-        clearInterval(this.spawnInterval);
-        this.occupiedPositions.clear();
-        
-        this.activeRockets.forEach((rocket, id) => this.removeRocket(id));
-        this.activePlanets.forEach((planet, id) => this.removePlanet(id));
-        
-        if (this.tg.isTelegram) {
-            this.tg.showMainButton(true);
-        }
-        
-        const userData = {
-            userId: this.userId,
-            username: this.getUsername(),
-            score: this.score,
-            streak: this.streak,
-            multiplier: this.multiplier
-        };
-        
-        await this.api.saveScore(userData);
-        
-        setTimeout(() => {
-            this.showResultModal();
-        }, 1000);
-    }
-    
-    showResultModal() {
-        const modal = document.getElementById('resultModal');
-        const finalScore = document.getElementById('finalScore');
-        const finalStreak = document.getElementById('finalStreak');
-        const finalMultiplier = document.getElementById('finalMultiplier');
-        
-        if (modal && finalScore) {
-            finalScore.textContent = this.score;
-            finalStreak.textContent = this.streak;
-            finalMultiplier.textContent = this.multiplier;
-            modal.style.display = 'flex';
-        }
-    }
-
-    updateUI() {
-        document.getElementById('score').textContent = this.score;
-        document.getElementById('streak').textContent = this.streak;
-        document.getElementById('multiplier').textContent = this.multiplier;
-    }
-
-    getUserId() {
-        if (window.Telegram?.WebApp) {
-            return window.Telegram.WebApp.initDataUnsafe?.user?.id.toString();
-        }
-        return 'user_' + Math.random().toString(36).substr(2, 9);
-    }
-
-    getUsername() {
-        if (window.Telegram?.WebApp) {
-            const user = window.Telegram.WebApp.initDataUnsafe?.user;
-            return user.username || user.first_name || 'Аноним';
-        }
-        return 'Гость';
-    }
-
-    createStars() {
-        function createStarLayer(selector, count, size, speed) {
-            const layer = document.querySelector(selector);
-            if (!layer) return;
-            
-            layer.innerHTML = '';
-            for (let i = 0; i < count; i++) {
-                const star = document.createElement('div');
-                star.style.position = 'absolute';
-                star.style.width = size + 'px';
-                star.style.height = size + 'px';
-                star.style.background = '#fff';
-                star.style.borderRadius = '50%';
-                star.style.left = Math.random() * 100 + '%';
-                star.style.top = Math.random() * 100 + '%';
-                star.style.animation = `fall ${speed}s linear infinite`;
-                star.style.opacity = Math.random() * 0.7 + 0.3;
-                layer.appendChild(star);
-            }
-        }
-
-        const starCount = this.isMobile ? [80, 40, 15] : [150, 80, 30];
-        createStarLayer('#stars', starCount[0], 1, 50);
-        createStarLayer('#stars2', starCount[1], 2, 100);
-        createStarLayer('#stars3', starCount[2], 3, 150);
-    }
-
-    setupEventListeners() {
-        document.getElementById('restart')?.addEventListener('click', () => this.restartGame());
-        document.getElementById('playAgain')?.addEventListener('click', () => {
-            document.getElementById('resultModal').style.display = 'none';
-            this.restartGame();
-        });
-        document.getElementById('closeModal')?.addEventListener('click', () => {
-            document.getElementById('resultModal').style.display = 'none';
-        });
-        document.getElementById('share')?.addEventListener('click', () => this.shareResults());
-        document.getElementById('showLeaderboard')?.addEventListener('click', () => {
-            this.showLeaderboard();
-        });
-        document.getElementById('closeLeaderboard')?.addEventListener('click', () => {
-            document.getElementById('leaderboardModal').style.display = 'none';
-        });
-        
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
-            });
-        });
-        
-        window.addEventListener('resize', this.handleResize.bind(this));
-        window.addEventListener('orientationchange', this.handleOrientationChange.bind(this));
-    }
-
-    handleResize() {
-        setTimeout(() => {
-            this.createStars();
-        }, 100);
-    }
-
-    handleOrientationChange() {
-        setTimeout(() => {
-            this.createStars();
-            const gameArea = document.getElementById('gameArea');
-            if (gameArea) {
-                gameArea.style.width = '100%';
-                gameArea.style.height = '100%';
-            }
-        }, 300);
-    }
-
-    async showLeaderboard() {
-        await this.loadLeaderboards();
-        document.getElementById('leaderboardModal').style.display = 'flex';
-    }
-
-    async loadLeaderboards() {
-        try {
-            const [daily, weekly, userPosition] = await Promise.all([
-                this.api.getDailyLeaderboard(),
-                this.api.getWeeklyLeaderboard(),
-                this.api.getUserPosition(this.userId)
-            ]);
-            
-            this.leaderboard.daily = daily;
-            this.leaderboard.weekly = weekly;
-            this.updateLeaderboardUI();
-            this.updateUserPosition(userPosition);
-        } catch (error) {
-            console.error('Error loading leaderboards:', error);
-        }
-    }
-
-    updateLeaderboardUI() {
-        this.renderLeaderboard('daily', this.leaderboard.daily);
-        this.renderLeaderboard('weekly', this.leaderboard.weekly);
-    }
-
-    renderLeaderboard(type, data) {
-        const container = document.getElementById(`${type}Leaderboard`)?.querySelector('.leaderboard-list');
-        if (!container) return;
-        
-        if (data.length === 0) {
-            container.innerHTML = '<div class="empty-leaderboard">Пока нет результатов</div>';
-            return;
-        }
-        container.innerHTML = data.map((user, index) => `
-            <div class="leaderboard-item">
-                <div class="leaderboard-rank">${index + 1}</div>
-                <div class="leaderboard-user">
-                    <div class="leaderboard-username">${user.username}</div>
-                    <div class="leaderboard-stats">
-                        Страйк: ${user.streak}x • Множитель: x${user.multiplier}
-                    </div>
-                </div>
-                <div class="leaderboard-score">${user.score}</div>
-            </div>
-        `).join('');
-    }
-
-    updateUserPosition(position) {
-        const dailyEl = document.getElementById('dailyPosition');
-        const weeklyEl = document.getElementById('weeklyPosition');
-        if (dailyEl) dailyEl.textContent = position.daily || '-';
-        if (weeklyEl) weeklyEl.textContent = position.weekly || '-';
-    }
-
-    switchTab(tabName) {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tabName);
-        });
-        document.querySelectorAll('.tab-pane').forEach(pane => {
-            pane.classList.toggle('active', pane.id === `${tabName}Leaderboard`);
-        });
-    }
-
-    shareResults() {
-        if (this.tg.isTelegram) {
-            this.tg.shareResults(this.score, this.streak, this.multiplier);
-        } else {
-            const text = `🚀 Я набрал ${this.score} очков в Космическом Математическом Бое! 
-Страйк: ${this.streak}, Множитель: x${this.multiplier}`;
-            
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Космический Математический Бой',
-                    text: text,
-                    url: window.location.href
-                });
-            } else {
-                navigator.clipboard.writeText(text + '\n' + window.location.href)
-                    .then(() => alert('Результат скопирован в буфер обмена!'));
-            }
-        }
-    }
-
-    restartGame() {
-        clearInterval(this.timer);
-        clearInterval(this.spawnInterval);
-        this.occupiedPositions.clear();
-        
-        this.activeRockets.forEach((rocket, id) => this.removeRocket(id));
-        this.activePlanets.forEach((planet, id) => this.removePlanet(id));
-        
-        if (this.tg.isTelegram) {
-            this.tg.showMainButton(false);
-        }
-        
-        this.score = 0;
-        this.timeLeft = 60;
-        this.streak = 0;
-        this.multiplier = 1;
-        this.selectedRocket = null;
-        this.rocketCounter = 0;
-        this.planetCounter = 0;
-        
-        document.getElementById('resultModal').style.display = 'none';
-        setTimeout(() => this.initializeGame(), 500);
-    }
-}
-
-window.addEventListener('load', () => {
-    new MathGame();
-});
+            this.freePosition(parseFloat(planet.element
