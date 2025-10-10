@@ -145,6 +145,7 @@ class GameAPI {
 class MathGame {
     constructor() {
         this.score = 0;
+        this.totalScore = 0;
         this.timeLeft = 60;
         this.streak = 0;
         this.multiplier = 1;
@@ -201,19 +202,19 @@ class MathGame {
     }
 
     startSpawning() {
-        for (let i = 0; i < 4; i++) {
-            setTimeout(() => this.spawnRocket(), i * 1000);
+        for (let i = 0; i < 8; i++) {
+            setTimeout(() => this.spawnRocket(), i * 600);
         }
         setTimeout(() => {
-            for (let i = 0; i < 4; i++) {
-                setTimeout(() => this.spawnPlanet(), i * 1000);
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => this.spawnPlanet(), i * 600);
             }
-        }, 1500);
+        }, 1000);
         
         this.spawnInterval = setInterval(() => {
             this.maintainRockets();
             this.maintainPlanets();
-        }, 1000);
+        }, 700);
     }
 
     getFreePosition(elementWidth, elementHeight, padding = 10) {
@@ -223,7 +224,7 @@ class MathGame {
         const maxX = gameArea.offsetWidth - elementWidth - padding;
         const minX = padding;
         
-        const maxAttempts = this.isMobile ? 20 : 50;
+        const maxAttempts = this.isMobile ? 25 : 60;
         let attempts = 0;
         
         while (attempts < maxAttempts) {
@@ -241,7 +242,7 @@ class MathGame {
     }
 
     getPositionKey(x, width) {
-        const gridSize = width + 30;
+        const gridSize = width + 25;
         const gridX = Math.floor(x / gridSize);
         return `pos_${gridX}`;
     }
@@ -253,26 +254,26 @@ class MathGame {
 
     maintainRockets() {
         const currentRockets = this.activeRockets.size;
-        const neededRockets = 4 - currentRockets;
+        const neededRockets = 8 - currentRockets;
         if (neededRockets > 0) {
             for (let i = 0; i < neededRockets; i++) {
-                setTimeout(() => this.spawnRocket(), i * 800);
+                setTimeout(() => this.spawnRocket(), i * 500);
             }
         }
     }
 
     maintainPlanets() {
         const currentPlanets = this.activePlanets.size;
-        const neededPlanets = 4 - currentPlanets;
+        const neededPlanets = 8 - currentPlanets;
         if (neededPlanets > 0) {
             for (let i = 0; i < neededPlanets; i++) {
-                setTimeout(() => this.spawnPlanet(), i * 800);
+                setTimeout(() => this.spawnPlanet(), i * 500);
             }
         }
     }
 
     spawnRocket() {
-        if (this.activeRockets.size >= 4) return;
+        if (this.activeRockets.size >= 8) return;
         
         const rocketId = this.rocketCounter++;
         const gameArea = document.getElementById('gameArea');
@@ -297,14 +298,14 @@ class MathGame {
         rocket.appendChild(rocketImage);
         rocket.appendChild(rocketText);
         
-        const rocketWidth = 70;
-        const rocketHeight = 50;
+        const rocketWidth = this.isMobile ? 70 : 120;
+        const rocketHeight = this.isMobile ? 50 : 80;
         
         const x = this.getFreePosition(rocketWidth, rocketHeight);
         rocket.style.left = x + 'px';
         rocket.style.top = '-100px';
         
-        const fallDuration = 4 + Math.random() * 2;
+        const fallDuration = 5 + Math.random() * 3;
         rocket.style.animationDuration = fallDuration + 's';
         
         this.activeRockets.set(rocketId, {
@@ -330,7 +331,7 @@ class MathGame {
     }
 
     spawnPlanet() {
-        if (this.activePlanets.size >= 4) return;
+        if (this.activePlanets.size >= 8) return;
         
         const planetId = this.planetCounter++;
         const gameArea = document.getElementById('gameArea');
@@ -362,14 +363,14 @@ class MathGame {
         planet.appendChild(planetImage);
         planet.appendChild(planetText);
         
-        const planetWidth = 50;
-        const planetHeight = 50;
+        const planetWidth = this.isMobile ? 50 : 80;
+        const planetHeight = this.isMobile ? 50 : 80;
         
         const x = this.getFreePosition(planetWidth, planetHeight);
         planet.style.left = x + 'px';
         planet.style.top = '-100px';
         
-        const fallDuration = 5 + Math.random() * 2;
+        const fallDuration = 6 + Math.random() * 3;
         planet.style.animationDuration = fallDuration + 's';
         
         this.activePlanets.set(planetId, {
@@ -394,7 +395,7 @@ class MathGame {
     }
 
     generatePlanetAnswer() {
-        if (Math.random() < 0.3 && this.activePlanets.size > 2) {
+        if (Math.random() < 0.25 && this.activePlanets.size > 3) {
             let bombAnswer;
             do {
                 bombAnswer = Math.floor(Math.random() * 50) + 1;
@@ -448,6 +449,7 @@ class MathGame {
         this.multiplier = Math.pow(2, Math.min(this.streak - 1, 4));
         const points = 10 * this.multiplier;
         this.score += points;
+        this.totalScore += points;
         
         this.showStreakEffect();
         this.highlightCorrect(planetId);
@@ -459,33 +461,35 @@ class MathGame {
         setTimeout(() => {
             this.maintainRockets();
             this.maintainPlanets();
-        }, 500);
+        }, 400);
     }
 
     handleWrongAnswer(planetId) {
         this.streak = 0;
         this.multiplier = 1;
         this.score = Math.max(0, this.score - 5);
+        this.totalScore = Math.max(0, this.totalScore - 5);
         
         this.vibrate();
         this.highlightWrong(planetId);
         this.updateUI();
         
         this.removePlanet(planetId);
-        setTimeout(() => this.maintainPlanets(), 500);
+        setTimeout(() => this.maintainPlanets(), 400);
     }
 
     handleBomb(planetId) {
         this.streak = 0;
         this.multiplier = 1;
         this.score = Math.max(0, this.score - 5);
+        this.totalScore = Math.max(0, this.totalScore - 5);
         
         this.vibrate(200);
         this.showBombEffect();
         this.updateUI();
         
         this.removePlanet(planetId);
-        setTimeout(() => this.maintainPlanets(), 500);
+        setTimeout(() => this.maintainPlanets(), 400);
     }
 
     removeRocket(rocketId) {
@@ -647,9 +651,10 @@ class MathGame {
         const userData = {
             userId: this.userId,
             username: this.getUsername(),
-            score: this.score,
+            score: this.totalScore,
             streak: this.streak,
-            multiplier: this.multiplier
+            multiplier: this.multiplier,
+            sessionScore: this.score
         };
         
         await this.api.saveScore(userData);
@@ -666,7 +671,7 @@ class MathGame {
         const finalMultiplier = document.getElementById('finalMultiplier');
         
         if (modal && finalScore) {
-            finalScore.textContent = this.score;
+            finalScore.textContent = this.totalScore;
             if (finalStreak) finalStreak.textContent = this.streak;
             if (finalMultiplier) finalMultiplier.textContent = this.multiplier;
             modal.style.display = 'flex';
@@ -678,7 +683,7 @@ class MathGame {
         const streakElement = document.getElementById('streak');
         const multiplierElement = document.getElementById('multiplier');
         
-        if (scoreElement) scoreElement.textContent = this.score;
+        if (scoreElement) scoreElement.textContent = this.totalScore;
         if (streakElement) streakElement.textContent = this.streak;
         if (multiplierElement) multiplierElement.textContent = this.multiplier;
     }
@@ -721,7 +726,7 @@ class MathGame {
             }
         };
 
-        const starCount = this.isMobile ? [60, 30, 10] : [100, 50, 20];
+        const starCount = this.isMobile ? [80, 40, 15] : [150, 80, 30];
         createStarLayer('#stars', starCount[0], 1, 50);
         createStarLayer('#stars2', starCount[1], 2, 100);
         createStarLayer('#stars3', starCount[2], 3, 150);
@@ -845,9 +850,9 @@ class MathGame {
 
     shareResults() {
         if (this.tg.isTelegram) {
-            this.tg.shareResults(this.score, this.streak, this.multiplier);
+            this.tg.shareResults(this.totalScore, this.streak, this.multiplier);
         } else {
-            const text = `🚀 Я набрал ${this.score} очков в Космическом Математическом Бое! 
+            const text = `🚀 Я набрал ${this.totalScore} очков в Космическом Математическом Бое! 
 Страйк: ${this.streak}, Множитель: x${this.multiplier}`;
             
             if (navigator.share) {
