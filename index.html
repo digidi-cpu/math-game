@@ -1,40 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тест Mini App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Космический Математический Бой</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background: #000;
-            color: white;
-            font-family: Arial;
-            text-align: center;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>✅ Тест работает!</h1>
-    <div id="status">Проверка...</div>
+    <div id="stars"></div>
+    <div id="stars2"></div>
+    <div id="stars3"></div>
     
-    <script>
-        try {
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.expand();
-                Telegram.WebApp.ready();
-                document.getElementById('status').innerHTML = 
-                    '✅ Telegram WebApp loaded!<br>' +
-                    'Platform: ' + Telegram.WebApp.platform + '<br>' +
-                    'Version: ' + Telegram.WebApp.version;
-            } else {
-                document.getElementById('status').innerHTML = '❌ Not in Telegram';
-            }
-        } catch (error) {
-            document.getElementById('status').innerHTML = '❌ Error: ' + error.message;
-        }
-    </script>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Космический Математический Бой</h1>
+            <div id="userWelcome" class="user-welcome" style="display: none;"></div>
+            <div class="stats">
+                <div class="stat">Очки: <span id="score">0</span></div>
+                <div class="stat">Время: <span id="timer">60</span>с</div>
+                <div class="stat">Страйк: <span id="streak">0</span>x</div>
+                <div class="stat">Множитель: <span id="multiplier">1</span></div>
+            </div>
+        </div>
+
+        <div id="gameArea" class="game-area"></div>
+
+        <div class="bomb-warning">
+            💣 Осторожно! Бомбы отнимают -5 очков!
+        </div>
+
+        <div class="controls">
+            <button id="restart" class="btn">🔄 Новая игра</button>
+            <button id="showLeaderboard" class="btn leaderboard-btn">🏆 Лидерборд</button>
+            <button id="share" class="btn share-btn">📤 Поделиться</button>
+        </div>
+        
+        <div id="resultModal" class="modal">
+            <div class="modal-content">
+                <h2>🎮 Игра окончена!</h2>
+                <div class="result-stats">
+                    <div>Ваш счет: <span id="finalScore">0</span></div>
+                    <div>Максимальный страйк: <span id="finalStreak">0</span></div>
+                    <div>Лучший множитель: x<span id="finalMultiplier">1</span></div>
+                </div>
+                <div class="modal-buttons">
+                    <button id="playAgain" class="btn">🎯 Играть снова</button>
+                    <button id="closeModal" class="btn btn-secondary">✕ Закрыть</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="leaderboardModal" class="modal">
+            <div class="modal-content">
+                <h2>🏆 Таблица лидеров</h2>
+                <div class="leaderboard-tabs">
+                    <button class="tab-btn active" data-tab="daily">📅 Сегодня</button>
+                    <button class="tab-btn" data-tab="weekly">📊 Неделя</button>
+                </div>
+                <div class="tab-content">
+                    <div id="dailyLeaderboard" class="tab-pane active">
+                        <div class="leaderboard-list"></div>
+                    </div>
+                    <div id="weeklyLeaderboard" class="tab-pane">
+                        <div class="leaderboard-list"></div>
+                    </div>
+                </div>
+                <div class="user-position">
+                    <div>Ваша позиция: 
+                        <span id="dailyPosition">-</span> (сегодня) • 
+                        <span id="weeklyPosition">-</span> (неделя)
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button id="closeLeaderboard" class="btn">✕ Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
 </body>
 </html>
